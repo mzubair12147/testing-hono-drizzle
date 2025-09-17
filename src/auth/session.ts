@@ -42,29 +42,32 @@ export async function rotateSession(
     const newHash = sha256(newRefreshToken);
     const expiresAt = new Date(Date.now() + parseTtl(newExpiresIn) * 1000);
 
-    await db.transaction(async (tx) => {
-        const old = (
-            await tx.select().from(sessions).where(eq(sessions.id, oldJti))
-        ).at(0);
-        if (!old) throw new Error("Old session not found");
+    // 1. Fetch the old session
+    const old = (
+        await db.select().from(sessions).where(eq(sessions.id, oldJti))
+    ).at(0);
 
-        console.log(oldJti);
-        await tx
-            .update(sessions)
-            .set({ isRevoked: true, replacedBy: newJti })
-            .where(eq(sessions.id, oldJti));
-        console.log(newJti);
+    if (!old) {
+        throw new Error("Old session not found");
+    }
 
-        await tx.insert(sessions).values({
-            id: newJti,
-            userId: old.userId,
-            refreshTokenHash: newHash,
-            expiresAt,
-        });
+    // 2. Revoke the old session
+    await db
+        .update(sessions)
+        .set({ isRevoked: true, replacedBy: newJti })
+        .where(eq(sessions.id, oldJti));
+
+    // 3. Insert the new session
+    await db.insert(sessions).values({
+        id: newJti,
+        userId: old.userId,
+        refreshTokenHash: newHash,
+        expiresAt,
     });
 
     return newJti;
 }
+
 
 export async function revokeSession(db: Db, jti: string) {
     await db
@@ -74,16 +77,12 @@ export async function revokeSession(db: Db, jti: string) {
 }
 
 export async function isRefreshValid(db: Db, jti: string, token: string) {
-    console.log("checking token");
     const row = (
         await db.select().from(sessions).where(eq(sessions.id, jti))
     ).at(0);
     if (!row) return false;
-    console.log("token present");
     if (row.isRevoked) return false;
-    console.log("token revoked");
     if (row.expiresAt < new Date()) return false;
-    console.log("not expired");
 
     const tokenHash = sha256(token);
     return tokenHash === row.refreshTokenHash;

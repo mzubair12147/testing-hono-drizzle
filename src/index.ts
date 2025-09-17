@@ -9,23 +9,58 @@ import userRouter from "./routes/user";
 import { filesRouter } from "./routes/files";
 import { Bindings } from "hono/types";
 import { cors } from "hono/cors";
+import { serve } from "@hono/node-server"
+import { prettyJSON } from "hono/pretty-json"
 
 const app = new OpenAPIHono<{
     Bindings: Bindings;
     Variables: { userId: number; sessionId: string };
-}>().basePath("/api");
+}>({
+    defaultHook: (result, c) => {
+        if (!result.success) {
+            return c.json({ error: 'Validation failed', details: result.error }, 400);
+        }
+    }
+}).basePath("/api");
 
 app.get("/", (c) => c.text("🚀 Server is running"));
 
-app.doc("/doc", {
+app.openAPIRegistry.registerComponent("securitySchemes", "Bearer", {
+    type: "http",
+    name: "Authorization",
+    scheme: "bearer",
+    in: "header",
+    description: "Bearer token",
+    bearerFormat: "JWT"
+});
+
+app.openAPIRegistry.registerComponent("securitySchemes", "cookieAuth", {
+    type: "apiKey",
+    in: "cookie",
+    name: "refresh_token",
+    description: "Authentication via refresh token stored in cookie",
+});
+
+
+app.use('/doc', prettyJSON())
+
+app.doc("/docs", {
     openapi: "3.0.0",
     info: {
         version: "1.0.0",
         title: "Hono Test API",
     },
+    // security: [{
+    //     Bearer: [],
+    // }]
 });
 
-app.get("/ui", swaggerUI({ url: "/api/doc" }));
+app.get("/doc", swaggerUI({
+    url: "/api/docs",
+    deepLinking: true,
+    displayRequestDuration: true,
+    persistAuthorization: true,
+}));
 
 app.use("*", logger());
 app.use(
@@ -79,6 +114,9 @@ console.log(`✅ Server is running at http://localhost:${port}`);
 // });
 
 // export default app;
+
+
+// cloudflare worker version
 export default {
     fetch: app.fetch,
 }

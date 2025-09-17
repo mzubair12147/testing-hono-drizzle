@@ -45,22 +45,89 @@ filesRouter.post("/deleted/webhook", async (c) => {
             .set({ isDeleted: true, status: "deleted" })
             .where(eq(files.path, file.name));
 
-        console.log(`File deleted: ${file.name}`);
     }
 
     return c.json({ ok: true });
 });
 
-filesRouter.use("/", authMiddleware);
-filesRouter.use("/upload-url", authMiddleware);
-filesRouter.use("/:id", authMiddleware);
-filesRouter.use("/:id/download", authMiddleware);
+
+/**
+ * new routes
+ */
+
+import {
+    testMetadataRoute,
+    testUploadRoute,
+    testDownloadRoute,
+} from "./routes";
+
+// Step 1: Metadata extractor
+filesRouter.openapi(testMetadataRoute, async (c: Context) => {
+    const form = await c.req.formData();
+    const file = form.get("file") as File | null;
+
+    if (!file) return c.json({ error: "No file uploaded" }, 400);
+
+    return c.json({
+        fileName: file.name,
+        contentType: file.type || "application/octet-stream",
+        size: file.size,
+    }, 200);
+});
+
+// Step 3: Upload file with signed URL
+filesRouter.openapi(testUploadRoute, async (c: Context) => {
+    const form = await c.req.formData();
+    const file = form.get("file") as File | null;
+    const signedUrl = form.get("signedUrl") as string;
+
+    if (!file || !signedUrl) {
+        return c.json({ error: "File and signedUrl required" }, 400);
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const uploadRes = await fetch(signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: buffer,
+    });
+
+
+    if (!uploadRes.ok) return c.json({ error: "Upload failed" }, 500);
+
+    return c.json({ success: true }, 200);
+});
+
+// Step 4: Download with signed URL
+filesRouter.openapi(testDownloadRoute, async (c: Context) => {
+    const { signedUrl } = await c.req.json<{ signedUrl: string }>();
+
+    if (!signedUrl) return c.json({ error: "signedUrl required" }, 400);
+
+    const response = await fetch(signedUrl);
+    if (!response.ok) return c.json({ error: "Failed to fetch file" }, 500);
+
+    return new Response(response.body, {
+        headers: {
+            "Content-Type": response.headers.get("Content-Type") ?? "application/octet-stream",
+            "Content-Disposition": response.headers.get("Content-Disposition") ?? "attachment",
+        },
+    });
+});
+
+// filesRouter.use("/", authMiddleware);
+// filesRouter.use("/upload-url", authMiddleware);
+// filesRouter.use("/:id", authMiddleware);
+// filesRouter.use("/:id/download", authMiddleware);
+
+filesRouter.use("*", authMiddleware);
+
 
 filesRouter.openapi(uploadUrlRoute, async (c: Context) => {
     const userId = c.get("userId") as number;
 
     const { fileName, contentType, size } = await c.req.json();
-    console.log(fileName, contentType, size);
     if (size > MAX_FILE_SIZE) {
         return c.json({ error: "File exceeds 10MB limit" }, 400);
     }
@@ -72,7 +139,6 @@ filesRouter.openapi(uploadUrlRoute, async (c: Context) => {
     const { data, error } = await supabase.storage
         .from(bucket)
         .createSignedUploadUrl(filePath, { upsert: false });
-    console.log("url-created");
 
     if (error) return c.json({ error: error.message }, 400);
 
@@ -129,7 +195,6 @@ filesRouter.openapi(downloadFileRoute, async (c: Context) => {
     const [file] = await db.select().from(files).where(eq(files.id, fileId));
 
     if (!file) return c.json({ error: "File not found" }, 404);
-    console.log(userId);
     if (file.userId !== userId) return c.json({ error: "Forbidden" }, 403);
 
     const bucket = ENV.SUPABASE_STORAGE_BUCKET_NAME || "uploads";
@@ -182,5 +247,7 @@ filesRouter.openapi(deleteFileRoute, async (c: Context) => {
 
     return c.json({ success: true }, 200);
 });
+
+
 
 export default filesRouter;

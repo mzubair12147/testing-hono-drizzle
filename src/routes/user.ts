@@ -11,7 +11,7 @@ userRouter.get("/seed", async (c) => {
     await db.insert(users).values({
       email: "test@gmail.com",
       passwordHash: await hashPassword("password"),
-      role: "user",
+      role: "admin",
     });
     return c.text("User created!");
   }
@@ -26,7 +26,6 @@ userRouter.get("/", async (c) => {
 userRouter.get("/:id", async (c) => {
   const userId = Number(c.req.param("id"));
   const user = await db.select().from(users).where(eq(users.id, userId));
-  console.log("user", user);
   return c.json(user);
 });
 

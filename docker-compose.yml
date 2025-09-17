@@ -1,0 +1,46 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./dockerfile
+    container_name: test-hono-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    depends_on:
+      - db
+    command: sh -c "npm run db:push && npm run start"
+    networks:
+      - test-hono-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: test-hono-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: testing-hono
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-hono-network
+
+volumes:
+  pgdata:
+
+networks:
+  test-hono-network:
+    driver: bridge

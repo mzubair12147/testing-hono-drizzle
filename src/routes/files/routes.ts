@@ -43,6 +43,32 @@ export const deleteResponse = z.object({
 });
 
 /**
+ * New Dtos 
+ */
+
+// Step 1: Metadata response
+export const fileMetadataResponse = z.object({
+    fileName: z.string().openapi({ example: "resume.pdf" }),
+    contentType: z.string().openapi({ example: "application/pdf" }),
+    size: z.number().openapi({ example: 123456 }),
+});
+
+// Step 3: Upload result
+export const testUploadRequest = z.object({
+    signedUrl: z.string().url().openapi({ example: "https://..." }),
+});
+
+export const testUploadResponse = z.object({
+    success: z.boolean().openapi({ example: true }),
+});
+
+// Step 4: Download request
+export const testDownloadRequest = z.object({
+    signedUrl: z.string().url().openapi({ example: "https://..." }),
+});
+
+
+/**
  * Routes
  */
 export const uploadUrlRoute = createRoute({
@@ -50,6 +76,7 @@ export const uploadUrlRoute = createRoute({
     path: "/upload-url",
     summary: "Generate signed upload URL",
     tags: ["Files"],
+    security: [{ Bearer: [] }],
     request: {
         body: {
             content: { "application/json": { schema: uploadUrlRequest } },
@@ -74,6 +101,7 @@ export const listFilesRoute = createRoute({
     path: "/",
     summary: "List user files",
     tags: ["Files"],
+    security: [{ Bearer: [] }],
     responses: {
         200: {
             description: "User's files",
@@ -87,6 +115,7 @@ export const downloadFileRoute = createRoute({
     path: "/{id}/download",
     summary: "Download file",
     tags: ["Files"],
+    security: [{ Bearer: [] }],
     request: {
         params: z.object({
             id: z.string().regex(/^\d+$/).openapi({ example: "42" }),
@@ -117,6 +146,7 @@ export const deleteFileRoute = createRoute({
     path: "/{id}",
     summary: "Delete file (admin only)",
     tags: ["Files"],
+    security: [{ Bearer: [] }],
     request: {
         params: z.object({
             id: z.string().regex(/^\d+$/).openapi({ example: "42" }),
@@ -148,3 +178,103 @@ export const deleteFileRoute = createRoute({
         },
     },
 });
+
+
+/**
+ * new routes
+ */
+
+// Step 1: Get metadata
+export const testMetadataRoute = createRoute({
+    method: "post",
+    path: "/test/metadata",
+    summary: "Get file metadata from local file",
+    tags: ["Files-Workflow"],
+    request: {
+        body: {
+            content: {
+                "multipart/form-data": {
+                    schema: z.object({
+                        file: z.any().openapi({ type: "string", format: "binary" }),
+                    }),
+                },
+            },
+        },
+    },
+    responses: {
+        200: {
+            description: "File metadata",
+            content: { "application/json": { schema: fileMetadataResponse } },
+        },
+        400: {
+            description: "Bad Request",
+            content: {
+                "application/json": { schema: z.object({ error: z.string() }) },
+            },
+        },
+    },
+});
+
+// Step 3: Upload using signed URL
+export const testUploadRoute = createRoute({
+    method: "post",
+    path: "/test/upload",
+    summary: "Upload file using signed URL",
+    tags: ["Files-Workflow"],
+    request: {
+        body: {
+            content: {
+                "multipart/form-data": {
+                    schema: z.object({
+                        file: z.any().openapi({ type: "string", format: "binary" }),
+                        signedUrl: z.string().url(),
+                    }),
+                },
+            },
+        },
+    },
+    responses: {
+        200: {
+            description: "Upload result",
+            content: { "application/json": { schema: testUploadResponse } },
+        },
+        400: {
+            description: "Bad Request",
+            content: {
+                "application/json": { schema: z.object({ error: z.string() }) },
+            },
+        },
+        500: {
+            description: "Upload failed",
+            content: {
+                "application/json": { schema: z.object({ error: z.string() }) },
+            },
+        },
+    },
+});
+
+// Step 4: Download using signed URL
+export const testDownloadRoute = createRoute({
+    method: "post",
+    path: "/test/download",
+    summary: "Download file using signed URL",
+    tags: ["Files-Workflow"],
+    request: {
+        body: {
+            content: {
+                "application/json": { schema: testDownloadRequest },
+            },
+        },
+    },
+    responses: {
+        200: {
+            description: "File download",
+            content: {
+                "application/octet-stream": {
+                    schema: { type: "string", format: "binary" },
+                },
+            },
+        },
+    },
+});
+

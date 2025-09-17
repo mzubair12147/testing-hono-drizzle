@@ -32,6 +32,8 @@ import {
 export const authRouter = new OpenAPIHono();
 
 authRouter.use("/me", authMiddleware);
+authRouter.use("/refresh", authMiddleware);
+authRouter.use("/logout", authMiddleware);
 
 authRouter.openapi(registerRoute, async (c) => {
     const { email, password } = c.req.valid("json");
@@ -148,5 +150,5 @@ authRouter.openapi(meRoute, async (c: Context) => {
         },
     });
 
-    return c.json({ data });
+    return c.json({ data }, 200);
 });
