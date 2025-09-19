@@ -3,10 +3,10 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import { db } from "./db/db";
-import { authRouter } from "./routes/auth";
+import { authRouter } from "./routes/auth/auth.routes"
 import { showRoutes } from "hono/dev";
 import userRouter from "./routes/user";
-import { filesRouter } from "./routes/files";
+import filesRouter from "./routes/files/file.route"
 import { Bindings } from "hono/types";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server"

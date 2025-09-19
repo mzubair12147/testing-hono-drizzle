@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.1.0",
     "@hono-rate-limiter/cloudflare": "^0.2.2",
     "@hono/node-server": "^1.19.0",
     "@hono/swagger-ui": "^0.5.2",
@@ -24,6 +25,7 @@
     "argon2-wasm-esm": "^1.0.3",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.5",
+    "drizzle-zod": "^0.8.3",
     "exit": "^0.1.2",
     "hono": "^4.9.6",
     "hono-rate-limiter": "^0.4.2",

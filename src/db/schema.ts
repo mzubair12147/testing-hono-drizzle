@@ -31,6 +31,7 @@ export const files = pgTable(
         createdAt: timestamp("created_at", { withTimezone: true })
             .defaultNow()
             .notNull(),
+
     },
     (t) => [
         index("files_user_idx").on(t.userId),
